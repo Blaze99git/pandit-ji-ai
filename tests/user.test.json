@@ -1,0 +1,26 @@
+{
+  "validUser": {
+    "name": "Utkarsh",
+    "dob": "2000-03-13",
+    "birth_time": "04:52:00",
+    "birth_place": "Dhanbad"
+  },
+
+  "missingFields": {
+    "name": "Utkarsh"
+  },
+
+  "invalidDate": {
+    "name": "Utkarsh",
+    "dob": "wrong-date",
+    "birth_time": "04:52:00",
+    "birth_place": "Dhanbad"
+  },
+
+  "invalidTime": {
+    "name": "Utkarsh",
+    "dob": "2000-03-13",
+    "birth_time": "abc",
+    "birth_place": "Dhanbad"
+  }
+}
