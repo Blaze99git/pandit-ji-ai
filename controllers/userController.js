@@ -1,40 +1,19 @@
 const { createUser } = require("../services/userService");
+const AppError = require("../utils/AppError");
 
-// ✅ Create User Controller
-const createUserHandler = async (req, res) => {
+const createUserHandler = async (req, res, next) => {
   try {
-    const { name, dob, birth_time, birth_place } = req.body;
+    const user = await createUser(req.body);
 
-    // 🔍 Basic validation
-    if (!name || !dob || !birth_time || !birth_place) {
-      return res.status(400).json({
-        error: "All fields are required",
-      });
-    }
-
-    // 🧠 Call service
-    const user = await createUser({
-      name,
-      dob,
-      birth_time,
-      birth_place,
-    });
-
-    // ✅ Success response
     res.status(201).json({
+      success: true,
       message: "User created successfully",
-      user,
+      data: user,
     });
 
   } catch (error) {
-    console.error("Controller Error:", error);
-
-    res.status(500).json({
-      error: "Internal Server Error",
-    });
+    next(new AppError("Failed to create user", 500));
   }
 };
 
-module.exports = {
-  createUserHandler,
-};
+module.exports = { createUserHandler };

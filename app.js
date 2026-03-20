@@ -5,6 +5,7 @@ require("dotenv").config();
 const pool = require("./utils/db");
 const userRoutes = require("./routes/userRoutes");
 const { createUsersTable } = require("./services/userService");
+const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
@@ -19,6 +20,17 @@ app.use("/api", userRoutes);
 app.get("/", (req, res) => {
   res.send("Pandit Ji AI Backend Running 🚀");
 });
+
+// ❌ Handle unknown routes (404)
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
+  });
+});
+
+// ✅ Global Error Handler (MUST BE LAST)
+app.use(errorHandler);
 
 // ✅ Initialize DB + Server
 const startServer = async () => {
