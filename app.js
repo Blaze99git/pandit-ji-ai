@@ -2,30 +2,43 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const pool = require("./utils/db");  // ✅ import here
+const pool = require("./utils/db");
+const userRoutes = require("./routes/userRoutes");
+const { createUsersTable } = require("./services/userService");
 
 const app = express();
 
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test DB connection
-pool.connect()
-  .then(() => console.log("PostgreSQL Connected ✅"))
-  .catch(err => console.error("DB Error:", err));
+// ✅ Routes
+app.use("/api", userRoutes);
 
-// Test route
+// ✅ Test route
 app.get("/", (req, res) => {
   res.send("Pandit Ji AI Backend Running 🚀");
 });
 
-const PORT = 5000;
+// ✅ Initialize DB + Server
+const startServer = async () => {
+  try {
+    // Connect DB
+    await pool.connect();
+    console.log("PostgreSQL Connected ✅");
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+    // Create tables
+    await createUsersTable();
 
-// Create users table on startup
-const { createUsersTable } = require("./services/userService");
+    // Start server
+    const PORT = 5000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
 
-createUsersTable();
+  } catch (err) {
+    console.error("Startup Error:", err);
+  }
+};
+
+startServer();

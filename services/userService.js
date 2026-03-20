@@ -1,5 +1,6 @@
 const pool = require("../utils/db");
 
+// ✅ Create Users Table
 const createUsersTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS users (
@@ -23,4 +24,28 @@ const createUsersTable = async () => {
   }
 };
 
-module.exports = { createUsersTable };
+// ✅ Create User (INSERT)
+const createUser = async (userData) => {
+  const { name, dob, birth_time, birth_place } = userData;
+
+  const query = `
+    INSERT INTO users (name, dob, birth_time, birth_place)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *;
+  `;
+
+  const values = [name, dob, birth_time, birth_place];
+
+  try {
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  } catch (err) {
+    console.error("Error inserting user:", err);
+    throw err;
+  }
+};
+
+module.exports = {
+  createUsersTable,
+  createUser,
+};
