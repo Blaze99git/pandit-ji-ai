@@ -9,12 +9,18 @@ def generate_kundli(dob, time, lat, lon):
     dt = datetime.strptime(f"{dob} {time}", "%Y-%m-%d %H:%M:%S")
     julian_day = swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute/60.0)
 
+    # 🌞 Sun & 🌙 Moon
     sun = swe.calc_ut(julian_day, swe.SUN)[0][0]
     moon = swe.calc_ut(julian_day, swe.MOON)[0][0]
 
+    # 🔥 Lagna (Ascendant)
+    houses = swe.houses(julian_day, lat, lon)
+    ascendant = houses[0][0]  # first house = lagna
+
     return {
         "sun_degree": sun,
-        "moon_degree": moon
+        "moon_degree": moon,
+        "ascendant_degree": ascendant
     }
 
 if __name__ == "__main__":

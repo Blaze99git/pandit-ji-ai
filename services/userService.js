@@ -53,6 +53,10 @@ const createUser = async (userData) => {
         degree: kundliRaw.moon_degree,
         sign: getZodiacSign(kundliRaw.moon_degree),
       },
+      ascendant: {
+        degree: kundliRaw.ascendant_degree,
+        sign: getZodiacSign(kundliRaw.ascendant_degree),
+      },
     };
 
     // 🔥 Step 4: Store user in DB
