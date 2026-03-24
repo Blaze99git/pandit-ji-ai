@@ -2,6 +2,7 @@ const pool = require("../utils/db");
 const { getCoordinates } = require("./geoService");
 const { generateKundli } = require("./kundliService");
 const { getZodiacSign } = require("../utils/zodiacUtils");
+const { findHouse } = require("../utils/houseUtils");
 
 // ✅ Create Users Table
 const createUsersTable = async () => {
@@ -27,7 +28,7 @@ const createUsersTable = async () => {
   }
 };
 
-// ✅ Create User (GEO + KUNDLI + ZODIAC)
+// ✅ Create User (FULL ENGINE FLOW)
 const createUser = async (userData) => {
   const { name, dob, birth_time, birth_place } = userData;
 
@@ -35,7 +36,7 @@ const createUser = async (userData) => {
     // 🔥 Step 1: Get coordinates
     const { latitude, longitude } = await getCoordinates(birth_place);
 
-    // 🔥 Step 2: Generate kundli (raw degrees)
+    // 🔥 Step 2: Generate kundli
     const kundliRaw = await generateKundli(
       dob,
       birth_time,
@@ -43,23 +44,33 @@ const createUser = async (userData) => {
       longitude
     );
 
-    // 🔥 Step 3: Convert degrees → zodiac signs
+    const houseDegrees = kundliRaw.house_degrees || [];
+
+    // 🔥 Step 3: Build kundli
     const kundli = {
       sun: {
         degree: kundliRaw.sun_degree,
         sign: getZodiacSign(kundliRaw.sun_degree),
+        house: findHouse(kundliRaw.sun_degree, houseDegrees),
       },
       moon: {
         degree: kundliRaw.moon_degree,
         sign: getZodiacSign(kundliRaw.moon_degree),
+        house: findHouse(kundliRaw.moon_degree, houseDegrees),
       },
       ascendant: {
         degree: kundliRaw.ascendant_degree,
         sign: getZodiacSign(kundliRaw.ascendant_degree),
+        house: 1,
       },
+      houses: houseDegrees.map((degree, index) => ({
+        house: index + 1,
+        degree,
+        sign: getZodiacSign(degree),
+      })),
     };
 
-    // 🔥 Step 4: Store user in DB
+    // 🔥 Step 4: Store user
     const query = `
       INSERT INTO users (name, dob, birth_time, birth_place, latitude, longitude)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -77,7 +88,7 @@ const createUser = async (userData) => {
 
     const result = await pool.query(query, values);
 
-    // 🔥 Step 5: Return structured response
+    // 🔥 Step 5: Return response
     return {
       user: result.rows[0],
       kundli,
