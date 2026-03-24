@@ -14,13 +14,15 @@ def generate_kundli(dob, time, lat, lon):
     moon = swe.calc_ut(julian_day, swe.MOON)[0][0]
 
     # 🔥 Lagna (Ascendant)
-    houses = swe.houses(julian_day, lat, lon)
-    ascendant = houses[0][0]  # first house = lagna
+    houses = swe.houses(julian_day, lat, lon)[0]
+    house_degrees = houses[:12]  # 12 house cusps
+    ascendant = houses[0]  # first house = lagna
 
     return {
         "sun_degree": sun,
         "moon_degree": moon,
-        "ascendant_degree": ascendant
+        "ascendant_degree": houses[0],
+        "house_degrees": house_degrees
     }
 
 if __name__ == "__main__":
