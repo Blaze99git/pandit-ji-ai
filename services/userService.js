@@ -3,6 +3,7 @@ const { getCoordinates } = require("./geoService");
 const { generateKundli } = require("./kundliService");
 const { getZodiacSign } = require("../utils/zodiacUtils");
 const { findHouse } = require("../utils/houseUtils");
+const { generatePredictions } = require("./predictionService");
 
 // ✅ Create Users Table
 const createUsersTable = async () => {
@@ -28,7 +29,7 @@ const createUsersTable = async () => {
   }
 };
 
-// ✅ Create User (FULL ENGINE FLOW)
+// ✅ Create User (FULL ENGINE FLOW + PREDICTIONS)
 const createUser = async (userData) => {
   const { name, dob, birth_time, birth_place } = userData;
 
@@ -70,7 +71,10 @@ const createUser = async (userData) => {
       })),
     };
 
-    // 🔥 Step 4: Store user
+    // 🔥 Step 4: Generate predictions (NEW 🔥)
+    const predictions = generatePredictions(kundli);
+
+    // 🔥 Step 5: Store user
     const query = `
       INSERT INTO users (name, dob, birth_time, birth_place, latitude, longitude)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -88,10 +92,11 @@ const createUser = async (userData) => {
 
     const result = await pool.query(query, values);
 
-    // 🔥 Step 5: Return response
+    // 🔥 Step 6: Return full response
     return {
       user: result.rows[0],
       kundli,
+      predictions,
     };
 
   } catch (err) {
