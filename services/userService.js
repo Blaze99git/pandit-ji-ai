@@ -4,6 +4,7 @@ const { generateKundli } = require("./kundliService");
 const { getZodiacSign } = require("../utils/zodiacUtils");
 const { findHouse } = require("../utils/houseUtils");
 const { generatePredictions } = require("./predictionService");
+const { generateAIInsights } = require("./aiService");
 
 // ✅ Create Users Table
 const createUsersTable = async () => {
@@ -17,7 +18,10 @@ const createUsersTable = async () => {
       latitude DECIMAL(9,6),
       longitude DECIMAL(9,6),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      kundli JSONB,
+      predictions JSONB,
+      ai_insights TEXT
     );
   `;
 
@@ -29,7 +33,7 @@ const createUsersTable = async () => {
   }
 };
 
-// ✅ Create User (FULL ENGINE FLOW + PREDICTIONS)
+// ✅ Create User (FULL ENGINE FLOW + AI + STORAGE)
 const createUser = async (userData) => {
   const { name, dob, birth_time, birth_place } = userData;
 
@@ -71,13 +75,17 @@ const createUser = async (userData) => {
       })),
     };
 
-    // 🔥 Step 4: Generate predictions (NEW 🔥)
+    // 🔥 Step 4: Predictions
     const predictions = generatePredictions(kundli);
 
-    // 🔥 Step 5: Store user
+    // 🔥 Step 5: AI Insights
+    const aiInsights = await generateAIInsights(kundli, predictions);
+
+    // 🔥 Step 6: Store everything
     const query = `
-      INSERT INTO users (name, dob, birth_time, birth_place, latitude, longitude)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO users 
+      (name, dob, birth_time, birth_place, latitude, longitude, kundli, predictions, ai_insights)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `;
 
@@ -88,15 +96,18 @@ const createUser = async (userData) => {
       birth_place,
       latitude,
       longitude,
+      kundli,       // JSONB directly (no stringify needed in pg)
+      predictions,  // JSONB directly
+      aiInsights
     ];
 
     const result = await pool.query(query, values);
 
-    // 🔥 Step 6: Return full response
     return {
       user: result.rows[0],
       kundli,
       predictions,
+      aiInsights,
     };
 
   } catch (err) {
@@ -105,7 +116,47 @@ const createUser = async (userData) => {
   }
 };
 
+// ✅ Get User Report (NO RECOMPUTATION)
+const getUserReport = async (userId) => {
+  try {
+    const query = `
+      SELECT id, name, dob, birth_time, birth_place,
+             latitude, longitude, kundli, predictions, ai_insights
+      FROM users
+      WHERE id = $1;
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      throw new Error("User not found");
+    }
+
+    const user = result.rows[0];
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        dob: user.dob,
+        birth_time: user.birth_time,
+        birth_place: user.birth_place,
+        latitude: user.latitude,
+        longitude: user.longitude,
+      },
+      kundli: user.kundli,
+      predictions: user.predictions,
+      aiInsights: user.ai_insights,
+    };
+
+  } catch (err) {
+    console.error("Error fetching user report:", err.message);
+    throw err;
+  }
+};
+
 module.exports = {
   createUsersTable,
   createUser,
+  getUserReport, // 🔥 NEW
 };
