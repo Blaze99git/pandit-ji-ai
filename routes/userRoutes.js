@@ -1,11 +1,17 @@
 const express = require("express");
 const router = express.Router();
 
+const {
+  createUserHandler,
+  getUserReportHandler
+} = require("../controllers/userController");
 
-const { createUserHandler } = require("../controllers/userController");
 const validateUser = require("../middleware/validateUser");
 
-// ✅ Apply validation BEFORE controller
+// ✅ Create User
 router.post("/users", validateUser, createUserHandler);
+
+// 🔥 Get User Report
+router.get("/users/:id/report", getUserReportHandler);
 
 module.exports = router;
