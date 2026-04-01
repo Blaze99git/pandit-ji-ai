@@ -1,4 +1,9 @@
-const { createUser, getUserReport } = require("../services/userService");
+const {
+  createUser,
+  getUserReport,
+  getDailyPrediction,
+} = require("../services/userService");
+
 const AppError = require("../utils/AppError");
 
 // ✅ Create User
@@ -17,7 +22,7 @@ const createUserHandler = async (req, res, next) => {
   }
 };
 
-// ✅ Get User Report (NEW 🔥)
+// ✅ Get User Report
 const getUserReportHandler = async (req, res, next) => {
   try {
     const userId = req.params.id;
@@ -34,7 +39,25 @@ const getUserReportHandler = async (req, res, next) => {
   }
 };
 
+// 🔥 NEW: Get Daily Prediction
+const getDailyPredictionHandler = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+
+    const data = await getDailyPrediction(userId);
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+
+  } catch (error) {
+    next(new AppError(error.message || "Failed to fetch daily prediction", 500));
+  }
+};
+
 module.exports = {
   createUserHandler,
-  getUserReportHandler, // 🔥 NEW
+  getUserReportHandler,
+  getDailyPredictionHandler, // 🔥 NEW
 };
