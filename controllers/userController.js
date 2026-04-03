@@ -2,6 +2,7 @@ const {
   createUser,
   getUserReport,
   getDailyPrediction,
+  askQuestion, // 🔥 NEW
 } = require("../services/userService");
 
 const AppError = require("../utils/AppError");
@@ -39,7 +40,7 @@ const getUserReportHandler = async (req, res, next) => {
   }
 };
 
-// 🔥 NEW: Get Daily Prediction
+// ✅ Get Daily Prediction
 const getDailyPredictionHandler = async (req, res, next) => {
   try {
     const userId = req.params.id;
@@ -56,8 +57,31 @@ const getDailyPredictionHandler = async (req, res, next) => {
   }
 };
 
+// 🔥 NEW: Ask AI Question (REVENUE FEATURE)
+const askQuestionHandler = async (req, res, next) => {
+  try {
+    const { userId, question } = req.body;
+
+    // ✅ Basic validation
+    if (!userId || !question) {
+      return next(new AppError("userId and question are required", 400));
+    }
+
+    const data = await askQuestion(userId, question);
+
+    res.status(200).json({
+      success: true,
+      data,
+    });
+
+  } catch (error) {
+    next(new AppError(error.message || "Failed to process question", 500));
+  }
+};
+
 module.exports = {
   createUserHandler,
   getUserReportHandler,
-  getDailyPredictionHandler, // 🔥 NEW
+  getDailyPredictionHandler,
+  askQuestionHandler, // 🔥 NEW
 };
