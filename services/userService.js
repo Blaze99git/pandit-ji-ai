@@ -6,6 +6,7 @@ const { findHouse } = require("../utils/houseUtils");
 const { generatePredictions } = require("./predictionService");
 const { generateAIInsights } = require("./aiService");
 const { generateDailyPrediction } = require("./dailyPredictionService");
+const { askAstrologyQuestion } = require("./askService"); // 🔥 NEW
 
 // ✅ Create Users Table
 const createUsersTable = async () => {
@@ -39,10 +40,10 @@ const createUser = async (userData) => {
   const { name, dob, birth_time, birth_place } = userData;
 
   try {
-    // 🔥 Step 1: Get coordinates
+    // 🔥 Step 1: Coordinates
     const { latitude, longitude } = await getCoordinates(birth_place);
 
-    // 🔥 Step 2: Generate kundli
+    // 🔥 Step 2: Kundli
     const kundliRaw = await generateKundli(
       dob,
       birth_time,
@@ -52,7 +53,6 @@ const createUser = async (userData) => {
 
     const houseDegrees = kundliRaw.house_degrees || [];
 
-    // 🔥 Step 3: Build kundli
     const kundli = {
       sun: {
         degree: kundliRaw.sun_degree,
@@ -76,20 +76,20 @@ const createUser = async (userData) => {
       })),
     };
 
-    // 🔥 Step 4: Rule-based predictions
+    // 🔥 Step 3: Predictions
     const predictions = generatePredictions(kundli);
 
-    // 🔥 Step 5: AI insights
+    // 🔥 Step 4: AI Insights
     const aiInsights = await generateAIInsights(kundli, predictions);
 
-    // 🔥 Step 6: Daily prediction
+    // 🔥 Step 5: Daily
     const dailyPrediction = generateDailyPrediction(kundli);
 
-    // 🔥 Step 7: Convert to JSON safely
+    // 🔥 Step 6: Convert JSON
     const kundliJSON = JSON.stringify(kundli);
     const predictionsJSON = JSON.stringify(predictions);
 
-    // 🔥 Step 8: Insert into DB
+    // 🔥 Step 7: Store
     const query = `
       INSERT INTO users 
       (name, dob, birth_time, birth_place, latitude, longitude, kundli, predictions, ai_insights)
@@ -125,16 +125,13 @@ const createUser = async (userData) => {
   }
 };
 
-// ✅ Get Full User Report
+// ✅ Get Full Report
 const getUserReport = async (userId) => {
   try {
-    const query = `
-      SELECT *
-      FROM users
-      WHERE id = $1;
-    `;
-
-    const result = await pool.query(query, [userId]);
+    const result = await pool.query(
+      `SELECT * FROM users WHERE id = $1`,
+      [userId]
+    );
 
     if (result.rows.length === 0) {
       throw new Error("User not found");
@@ -142,7 +139,6 @@ const getUserReport = async (userId) => {
 
     const user = result.rows[0];
 
-    // 🔥 Generate fresh daily prediction
     const dailyPrediction = generateDailyPrediction(user.kundli);
 
     return {
@@ -162,21 +158,18 @@ const getUserReport = async (userId) => {
     };
 
   } catch (err) {
-    console.error("Error fetching user report:", err.message);
+    console.error("Error fetching report:", err.message);
     throw err;
   }
 };
 
-// ✅ Get ONLY Daily Prediction (FAST API)
+// ✅ Daily Prediction (FAST)
 const getDailyPrediction = async (userId) => {
   try {
-    const query = `
-      SELECT kundli
-      FROM users
-      WHERE id = $1;
-    `;
-
-    const result = await pool.query(query, [userId]);
+    const result = await pool.query(
+      `SELECT kundli FROM users WHERE id = $1`,
+      [userId]
+    );
 
     if (result.rows.length === 0) {
       throw new Error("User not found");
@@ -184,14 +177,39 @@ const getDailyPrediction = async (userId) => {
 
     const kundli = result.rows[0].kundli;
 
-    const dailyPrediction = generateDailyPrediction(kundli);
-
     return {
-      dailyPrediction,
+      dailyPrediction: generateDailyPrediction(kundli),
     };
 
   } catch (err) {
     console.error("Error in daily prediction:", err.message);
+    throw err;
+  }
+};
+
+// 🔥 NEW: ASK QUESTION (REVENUE FEATURE)
+const askQuestion = async (userId, question) => {
+  try {
+    const result = await pool.query(
+      `SELECT kundli FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error("User not found");
+    }
+
+    const kundli = result.rows[0].kundli;
+
+    const answer = await askAstrologyQuestion(kundli, question);
+
+    return {
+      question,
+      answer,
+    };
+
+  } catch (err) {
+    console.error("Error in askQuestion:", err.message);
     throw err;
   }
 };
@@ -201,4 +219,5 @@ module.exports = {
   createUser,
   getUserReport,
   getDailyPrediction,
+  askQuestion, // 🔥 NEW
 };
