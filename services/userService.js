@@ -6,7 +6,7 @@ const { findHouse } = require("../utils/houseUtils");
 const { generatePredictions } = require("./predictionService");
 const { generateAIInsights } = require("./aiService");
 const { generateDailyPrediction } = require("./dailyPredictionService");
-const { askAstrologyQuestion } = require("./askService"); // 🔥 NEW
+const { askAstrologyQuestion } = require("./askService");
 
 // ✅ Create Users Table
 const createUsersTable = async () => {
@@ -35,6 +35,13 @@ const createUsersTable = async () => {
   }
 };
 
+// 🔥 Helper to build planet object (CLEAN + REUSABLE)
+const buildPlanet = (degree, houseDegrees) => ({
+  degree,
+  sign: getZodiacSign(degree),
+  house: findHouse(degree, houseDegrees),
+});
+
 // ✅ Create User (FULL PIPELINE)
 const createUser = async (userData) => {
   const { name, dob, birth_time, birth_place } = userData;
@@ -43,7 +50,7 @@ const createUser = async (userData) => {
     // 🔥 Step 1: Coordinates
     const { latitude, longitude } = await getCoordinates(birth_place);
 
-    // 🔥 Step 2: Kundli
+    // 🔥 Step 2: Kundli Raw
     const kundliRaw = await generateKundli(
       dob,
       birth_time,
@@ -53,22 +60,22 @@ const createUser = async (userData) => {
 
     const houseDegrees = kundliRaw.house_degrees || [];
 
+    // 🔥 Step 3: FULL PLANETARY KUNDLI 🚀
     const kundli = {
-      sun: {
-        degree: kundliRaw.sun_degree,
-        sign: getZodiacSign(kundliRaw.sun_degree),
-        house: findHouse(kundliRaw.sun_degree, houseDegrees),
-      },
-      moon: {
-        degree: kundliRaw.moon_degree,
-        sign: getZodiacSign(kundliRaw.moon_degree),
-        house: findHouse(kundliRaw.moon_degree, houseDegrees),
-      },
+      sun: buildPlanet(kundliRaw.sun_degree, houseDegrees),
+      moon: buildPlanet(kundliRaw.moon_degree, houseDegrees),
+      mars: buildPlanet(kundliRaw.mars_degree, houseDegrees),
+      mercury: buildPlanet(kundliRaw.mercury_degree, houseDegrees),
+      jupiter: buildPlanet(kundliRaw.jupiter_degree, houseDegrees),
+      venus: buildPlanet(kundliRaw.venus_degree, houseDegrees),
+      saturn: buildPlanet(kundliRaw.saturn_degree, houseDegrees),
+
       ascendant: {
         degree: kundliRaw.ascendant_degree,
         sign: getZodiacSign(kundliRaw.ascendant_degree),
         house: 1,
       },
+
       houses: houseDegrees.map((degree, index) => ({
         house: index + 1,
         degree,
@@ -76,40 +83,35 @@ const createUser = async (userData) => {
       })),
     };
 
-    // 🔥 Step 3: Predictions
+    // 🔥 Step 4: Predictions
     const predictions = generatePredictions(kundli);
 
-    // 🔥 Step 4: AI Insights
+    // 🔥 Step 5: AI Insights
     const aiInsights = await generateAIInsights(kundli, predictions);
 
-    // 🔥 Step 5: Daily
+    // 🔥 Step 6: Daily Prediction
     const dailyPrediction = generateDailyPrediction(kundli);
 
-    // 🔥 Step 6: Convert JSON
-    const kundliJSON = JSON.stringify(kundli);
-    const predictionsJSON = JSON.stringify(predictions);
-
-    // 🔥 Step 7: Store
-    const query = `
+    // 🔥 Step 7: Store in DB (JSONB DIRECT ✅)
+    const result = await pool.query(
+      `
       INSERT INTO users 
       (name, dob, birth_time, birth_place, latitude, longitude, kundli, predictions, ai_insights)
-      VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
       RETURNING *;
-    `;
-
-    const values = [
-      name,
-      dob,
-      birth_time,
-      birth_place,
-      latitude,
-      longitude,
-      kundliJSON,
-      predictionsJSON,
-      aiInsights,
-    ];
-
-    const result = await pool.query(query, values);
+      `,
+      [
+        name,
+        dob,
+        birth_time,
+        birth_place,
+        latitude,
+        longitude,
+        kundli,
+        predictions,
+        aiInsights,
+      ]
+    );
 
     return {
       user: result.rows[0],
@@ -139,8 +141,6 @@ const getUserReport = async (userId) => {
 
     const user = result.rows[0];
 
-    const dailyPrediction = generateDailyPrediction(user.kundli);
-
     return {
       user: {
         id: user.id,
@@ -154,7 +154,7 @@ const getUserReport = async (userId) => {
       kundli: user.kundli,
       predictions: user.predictions,
       aiInsights: user.ai_insights,
-      dailyPrediction,
+      dailyPrediction: generateDailyPrediction(user.kundli),
     };
 
   } catch (err) {
@@ -163,7 +163,7 @@ const getUserReport = async (userId) => {
   }
 };
 
-// ✅ Daily Prediction (FAST)
+// ✅ Daily Prediction (FAST API)
 const getDailyPrediction = async (userId) => {
   try {
     const result = await pool.query(
@@ -175,10 +175,8 @@ const getDailyPrediction = async (userId) => {
       throw new Error("User not found");
     }
 
-    const kundli = result.rows[0].kundli;
-
     return {
-      dailyPrediction: generateDailyPrediction(kundli),
+      dailyPrediction: generateDailyPrediction(result.rows[0].kundli),
     };
 
   } catch (err) {
@@ -187,7 +185,7 @@ const getDailyPrediction = async (userId) => {
   }
 };
 
-// 🔥 NEW: ASK QUESTION (REVENUE FEATURE)
+// 🔥 ASK QUESTION (REVENUE FEATURE)
 const askQuestion = async (userId, question) => {
   try {
     const result = await pool.query(
@@ -199,9 +197,10 @@ const askQuestion = async (userId, question) => {
       throw new Error("User not found");
     }
 
-    const kundli = result.rows[0].kundli;
-
-    const answer = await askAstrologyQuestion(kundli, question);
+    const answer = await askAstrologyQuestion(
+      result.rows[0].kundli,
+      question
+    );
 
     return {
       question,
@@ -219,5 +218,5 @@ module.exports = {
   createUser,
   getUserReport,
   getDailyPrediction,
-  askQuestion, // 🔥 NEW
+  askQuestion,
 };
